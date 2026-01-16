@@ -61,7 +61,7 @@ class ArrivalTime():
             wave = np.zeros_like(t)
             for i in range(len(t)): 
                 if ((i % numclick)==0 and (i/numclick < f)):
-                    wave[i] = np.abs(self.condwavefunc(t[i], xLim, xDtc, i, click))**2
+                    wave[i] = np.abs(self.condwavefunc(t[i], xLim, xDtc, int(i/numclick), click))**2
             return wave
 
         norm = 1  """The normalization is to heavy."""
