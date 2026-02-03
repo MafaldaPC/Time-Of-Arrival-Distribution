@@ -52,102 +52,102 @@ class GaussianTrain():
         return wavepckt
 
   
-    def condarrival(self, tVar, xLim, x1, x2, f, click, idx):
+    def condarrival(self, tVar, xVar, x1, x2, click, numclick, idx):
          """ Evaluate single Gaussian wave packet conditioned on being measured at this specific time and not before.
          Parameters:
-            tVar : float or array-like
-                Time variable.
-            xLim : float or array-like
-                Position domain.
-            idx : int
-                Packet index.
-            x1 : int
-                Left edge of detector.
-            x2: int 
-                Right edge of detector.
-            f: int
-                Number of Clicks under consideration.
-            click: float
-                Time spent between two consecutive clicks.
-          Returns:
-          Complex or np.ndarray
-            Value of Gaussian packet at time tVar conditioned on being on [x1,x2], not having been there at prior times
+        tVar : float or array-like
+            Time variable.
+        xVar : float or array-like
+            Position variable.
+        idx : int
+            Packet index.
+        x1 : int
+            Left edge of detector.
+        x2: int 
+            Right edge of detector.
+        click: float
+            Time spent between two consecutive clicks.
+        numclick: float
+            Number of time points between two consecutive clicks
+        Returns:
+        finalwave: Complex or np.ndarray
+            Value of Gaussian packet at every time point tVar conditioned on being on [x1,x2], not having been there at prior times
          """
 
-        def condpacket(tVar, xVar, xLim, x1, x2, f, click, i, idx):
-            """ Evaluate single Gaussian wave packet.
-            xVar : float or array-like
-                Position variable.
-            i: int
-                Number of Clicks already considered.
-            Returns:
-            wf : complex or np.ndarray
-                Value of the Gaussian packet at (tVar, xVar).
-            """
 
-            def Operator( x, xp, click, idx):
-              """ Computes the time evolution of one click between x and xp.
-              x : float or array-like
+
+        def Operator( p, click, idx):
+            """ Computes the time evolution of one click with momentum p.
+            x : float or array-like
                 Position variable.
-              xp : float or array-like
+            xp : float or array-like
                 Prior position of the packet.
-              Returns:
+            Returns:
                 Value of the Unitary Operator with (x, click, xp).
-              """
-                return (self.M[idx]/(2*np.pi*1j*click))**(1/2)*np.exp(1j*self.M[idx]*(xp-x)**2/(2*click))
+            """
+            return np.exp(-1j*click*p**2/(2*self.M[idx]))
 
-            def Wavepacket( t, x, idx):
-              """ Evaluate single Gaussian wave packet.
-              t : float or array-like
+        def Wavepacket( t, x, idx):
+            """ Evaluate single Gaussian wave packet.
+            t : float or array-like
                 Time variable.
-              x : float or array-like
+            x : float or array-like
                 Position variable.
-              Returns:
+            Returns:
               wavepckt : complex or np.ndarray
-                Value of the Gaussian packet at (t, x).
-              """
-                return (1/( np.pi**(1/4)*np.sqrt( self.S[idx] + 1j*t/(self.S[idx]*self.M[idx]) ) ) *\
-                        np.exp( -1*( (x - self.X[idx] - self.P[idx]*t/self.M[idx])**2 )/\
-                              ( (2*self.S[idx]**2)*(1 + 1j*t/( self.M[idx]*self.S[idx]**2 ) ) ) )*\
-                        np.exp( 1j*self.P[idx]*(x- self.X[idx] - self.P[idx]*t/(2*self.M[idx]) ) ))
+            Value of the Gaussian packet at (t, x).
+            """
+            return (1/( np.pi**(1/4)*np.sqrt( self.S[idx] + 1j*t/(self.S[idx]*self.M[idx]) ) ) *\
+                    np.exp( -1*( (x - self.X[idx] - self.P[idx]*t/self.M[idx])**2 )/\
+                           ( (2*self.S[idx]**2)*(1 + 1j*t/( self.M[idx]*self.S[idx]**2 ) ) ) )*\
+                    np.exp( 1j*self.P[idx]*(x- self.X[idx] - self.P[idx]*t/(2*self.M[idx]) ) ))
 
-            t = np.array(tVar)
-            x = np.array(xVar)
-            if self.nospread:
-                t = np.zeros_like(tVar)
-                x = xVar - self.P[idx]*tVar/self.M[idx] 
+        t = np.array(tVar)
+        x = np.array(xVar)
+        if self.nospread:
+            t = np.zeros_like(tVar)
+            x = xVar - self.P[idx]*tVar/self.M[idx] 
             
-            wave=0
+        wave= Wavepacket(t,x,idx)
+        dx = x[1]-x[0]
+        numPoints = len(x)
+        finalwave = []
+        p = 2*np.pi*np.fft.fftfreq(numPoints, d=dx) #momentum
+        Propagator = Operator(p,click,idx)
+        
+        mask=[]
+        for i in range(len(x)):
+            if (x[i]>=x1) and (x[i]<=x2):
+                mask.append(i)
 
-            if (i < f): 
-              """Condition of non-measurement.  
-              f : int
-                click in which the packet is conditioned to being measured.
-              i : int
-                click in which the packet is being evaluated.
-              Result:
-                Packet conditioned on not being measured at t_(f-i) and at every prior click.
-              """
-                wave = sp.integrate.quad(lambda y: np.real(Operator( y, x, click, idx) * (condpacket( t, y, xLim, x1, x2, f, click, i+1, idx))), xLim[0], x1)[0] 
-                return(wave)
-            else:
-              """Condition of non-measurement at t_0."""
-                wave = (sp.integrate.quad(lambda y: np.real(Operator( y, x, click, idx) * (Wavepacket( t, y, idx)) ), xLim[0], x1)[0]) 
-                return wave
+        for i in range(numPoints):
+            if (i%numclick)==0: #If the detector clicks
+                prob = 0
+                for j in mask:
+                    prob += abs(wave[j])**2 *dx #Probability of the packet being inside of the detector's region
+                finalwave.append(prob)
+                    
+                wave = (np.fft.ifft( Propagator * np.fft.fft( wave ) ))
+                norm = np.sum(np.abs(wave)**2)*dx
+                wave = wave / np.sqrt(norm)
+
+            else: #If the detector does not click
+                finalwave.append(0)
+
+        return(finalwave)
 
 
-        """ Condition of measurement at t_f. """
-        return (sp.integrate.quad(lambda x: np.real(condpacket(tVar, x, xLim, x1, x2, f-1, click, 0, idx)), x1, x2)[0])
-
-    def condsuperposition(self, tVar, xLim, xDtc, f, click):
+    def condsuperposition(self, tVar, xVar, xDtc, click, numclick):
         """ Evaluate superposition of Conditioned Gaussian wave packets.
         Parameters:
         tVar : float or array-like
             Time variable.
+        xVar: float or array-like
+            Position variable.
         xDtc: float or array-like
             Detector Position.
-        f: int
-            Number of Clicks under consideration.
+        numclick: float
+            Number of time points between two consecutive clicks
         click: float
             Time spent between two consecutive clicks.
         Returns:
@@ -156,7 +156,7 @@ class GaussianTrain():
         """
         trainpckt = 0
         for idx in range(self.N): 
-            trainpckt += self.condarrival(tVar, xLim, xDtc[0], xDtc[1], f, click, idx)
+            trainpckt += self.condarrival(tVar, xVar, xDtc[0], xDtc[1], click, numclick, idx)
         return trainpckt/np.sqrt(self.N)
 
 
