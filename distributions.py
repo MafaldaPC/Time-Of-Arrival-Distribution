@@ -34,7 +34,7 @@ class ArrivalTime():
         self.toa['Quantum clock'] = toa(tVar)/norm
 
   
-    def click(self, tVar, tLim, xLim, xDtc, f, click, numclick): 
+    def click(self, tVar, xVar, xDtc, numclick): 
         """ Compute click proposal.
         Parameters:
         tVar : float or array-like
@@ -52,26 +52,25 @@ class ArrivalTime():
         numclick : int
             Number of clicks possible in the Temporal domain.
         """ 
+        dt = tVar[1]-tVar[0]
+        click = numclick * dt
         def toa(t):
             """Conditioned arrival time distribution. 
             Parameters:
             t : float or array-like
                 Time variable.
             """
-            wave = np.zeros_like(t)
-            for i in range(len(t)): 
-                if ((i % numclick)==0 and (i/numclick < f)):
-                    wave[i] = np.abs(self.condwavefunc(t[i], xLim, xDtc, int(i/numclick), click))**2
-            return wave
+            return self.condwavefunc(t, xVar, xDtc, click, numclick)
 
-        norm = 1  """The normalization is to heavy."""
+        wave = toa(tVar[0])
+        norm = np.sum(wave)*click
         #i=1
         #norm = 0
         #while click*i<tLim[1]:
         #    norms, _ = sp.integrate.quad(toa, tLim[0]+click*(i-1), tLim[0]+click*i)
         #    norm += norms
         #    i=i+1
-        self.toa['Click Approach'] = toa(tVar)/norm
+        self.toa['Click Approach'] = wave/norm
         
 
     def quantumflux(self, tVar, tLim):
@@ -171,7 +170,7 @@ class ArrivalTime():
         nclick : int
           Number of clicks possible in the Temporal domain.
         """
-        click = nclick*(tLim[1]-tLim[0])/numPoints
+        
         t = np.linspace(tLim[0], tLim[1], numPoints)
         #tcond = np.linspace(tLim[0], tLim[1], int(numPoints/nclick))
         x = np.linspace(xLim[0], xLim[1], numPoints)
@@ -180,7 +179,7 @@ class ArrivalTime():
         #densitys = np.abs(self.condwavefunc(t, xDtc, f, t[1]-t[0]))**2 
         densityDtc = np.abs(self.wavefunc(t, xDtc[0]))**2
         self.quantumclock(t,tLim)
-        self.click(t, tLim, xLim, xDtc, f, click, nclick)
+        self.click(t, x, xDtc, nclick)
 
 
         plt.rcParams.update({'font.size': 12})
