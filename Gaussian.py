@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 class GaussianTrain():
     """ Build, manage and visualize a superposition of Gaussian wave packets. """
-    def __init__(self, X, P, S, M, nospread = False):
+    def __init__(self, X, P, S, M, nospread = False, conditioned = False):
         """ Initialize Gaussian wave packets.
         Parameters:
         X : array-like
@@ -24,6 +24,7 @@ class GaussianTrain():
         self.M = np.array(M, dtype = float)
         self.N = np.size(self.X) #número de packets que o wave train tem
         self.nospread = nospread
+        self.conditioned = conditioned
 
     def packet(self, tVar, xVar, idx):
         """ Evaluate single Gaussian wave packet.
@@ -103,36 +104,53 @@ class GaussianTrain():
                     np.exp( 1j*self.P[idx]*(x- self.X[idx] - self.P[idx]*t/(2*self.M[idx]) ) ))
 
         t = np.array(tVar)
-        x = np.array(xVar)
-        if self.nospread:
-            t = np.zeros_like(tVar)
-            x = xVar - self.P[idx]*tVar/self.M[idx] 
-            
-        wave= Wavepacket(t,x,idx)
-        dx = x[1]-x[0]
-        numPoints = len(x)
-        finalwave = []
+        x = [np.array(xVar)]*len(idx) #List of positions for each packet
+        dx = x[0][1]-x[0][0]
+        numPoints = len(x[0])
+        x1 = [x1]*len(idx)
+        x2 = [x2]*len(idx)
         p = 2*np.pi*np.fft.fftfreq(numPoints, d=dx) #momentum
-        Propagator = Operator(p,click,idx)
+        if self.nospread:
+            for k in idx:
+                x[k] = x[k] - self.P[k]*t/self.M[k] 
+                x1[k] = x1[k] - self.P[k]*t/self.M[k]
+                x2[k] = x2[k] - self.P[k]*t/self.M[k]
+            t = np.zeros_like(t)
+            
+        finalwave = []
+
+        wave= []
+        Propagator = []
+        for k in idx:
+            wave.append(Wavepacket(t,x[k],k))
+            Propagator.append(Operator(p,click,k))
         
         mask=[]
-        for i in range(len(x)):
-            if (x[i]>=x1) and (x[i]<=x2):
-                mask.append(i)
+        for k in idx:
+            maskex = [] # One mask for each packet
+            for i in range(numPoints):
+                if (x[k][i]>=x1[k]) and (x[k][i]<=x2[k]):
+                    maskex.append(i)
+            mask.append(maskex)
 
         for i in range(numPoints):
             if (i%numclick)==0: #If the detector clicks
                 prob = 0
-                for j in mask:
-                    prob += abs(wave[j])**2 *dx #Probability of the packet being inside of the detector's region
+                for j in range(numPoints):
+                    aux = 0
+                    for k in idx:
+                        if j in mask[k]:
+                            aux += wave[k][j] # Summing all the packets at this point
+                            if self.conditioned: #If there is conditioning on non-arrival
+                                wave[k][j] = 0 
+                    prob += abs(aux)**2 *dx #Probability of the packets being inside of the detector's region
                 finalwave.append(prob)
-                    
-                wave = (np.fft.ifft( Propagator * np.fft.fft( wave ) ))
-                norm = np.sum(np.abs(wave)**2)*dx
-                wave = wave / np.sqrt(norm)
 
-            else: #If the detector does not click
-                finalwave.append(0)
+                for k in idx:
+                    wave[k] = (np.fft.ifft( Propagator[k] * np.fft.fft( wave[k] ) ))
+                    norm = np.sum(np.abs(wave[k])**2)*dx
+                    wave[k] = wave[k] / np.sqrt(norm)
+
 
         return(finalwave)
 
@@ -154,9 +172,8 @@ class GaussianTrain():
         trainpckt : complex or np.ndarray
             Value of the superposition at (tVar, xVar).
         """
-        trainpckt = 0
-        for idx in range(self.N): 
-            trainpckt += self.condarrival(tVar, xVar, xDtc[0], xDtc[1], click, numclick, idx)
+        idx = list(range(self.N))
+        trainpckt = self.condarrival(tVar, xVar, xDtc[0], xDtc[1], click, numclick, idx) 
         return trainpckt/np.sqrt(self.N)
 
 
