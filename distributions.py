@@ -180,6 +180,10 @@ class ArrivalTime():
         densityDtc = np.abs(self.wavefunc(t, xDtc[0]))**2
         self.quantumclock(t,tLim)
         self.click(t, x, xDtc, nclick)
+        taux = []
+        for i in range(numPoints): #Time domain of the Click Approach
+            if i % nclick == 0:
+                taux.append(t[i])
 
 
         plt.rcParams.update({'font.size': 12})
@@ -202,12 +206,16 @@ class ArrivalTime():
         ax2.title.set_text(f"Density at x = {xDtc}")
         
         for idx, key in enumerate(self.toa):
-            ax3.plot(t, self.toa[key], color = colors[idx], marker = markers[idx], linestyle = lines[idx],\
+            if key == 'Click Approach':
+                ax3.plot(taux, self.toa[key], color = colors[idx], marker = markers[idx], linestyle = lines[idx],\
+                     markersize = 1, linewidth = 1, label = key)
+            else:
+                ax3.plot(t, self.toa[key], color = colors[idx], marker = markers[idx], linestyle = lines[idx],\
                      markersize = 1, linewidth = 1, label = key)
         ax3.set_xlabel("Time")
         ax3.set_ylabel("Probability")
         ax3.title.set_text("Arrival time distributions")
-        ax3.legend(loc = 'upper right')
+        ax3.legend(loc = 'upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
 
         
         plt.show()
