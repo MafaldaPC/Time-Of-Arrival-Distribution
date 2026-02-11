@@ -140,13 +140,16 @@ class GaussianTrain():
                     aux = 0
                     for k in idx:
                         if j in mask[k]:
-                            aux += wave[k][j] # Summing all the packets at this point
+                            aux += wave[k][j] / np.sqrt(len(mask[k])) # Summing all the packets at this point and dividing it by the squareroot of the number of packets
                             if self.conditioned: #If there is conditioning on non-arrival
                                 wave[k][j] = 0 
                     prob += abs(aux)**2 *dx #Probability of the packets being inside of the detector's region
                 finalwave.append(prob)
 
                 for k in idx:
+                    if self.conditioned:
+                        norm = np.sum(np.abs(wave[k])**2) * dx
+                        wave[k] = wave[k] / np.sqrt(norm)
                     wave[k] = (np.fft.ifft( Propagator[k] * np.fft.fft( wave[k] ) ))
                     norm = np.sum(np.abs(wave[k])**2)*dx
                     wave[k] = wave[k] / np.sqrt(norm)
@@ -191,7 +194,7 @@ class GaussianTrain():
         trainpckt = 0
         for idx in range(self.N): 
             trainpckt += self.packet(tVar, xVar, idx) 
-        return trainpckt/np.sqrt(self.N) 
+        return trainpckt
 
     def visualize(self, numPoints, tLim, xLim, xDtc = 0):
         """ Visualize wave function with density and fixed-position plotw.
