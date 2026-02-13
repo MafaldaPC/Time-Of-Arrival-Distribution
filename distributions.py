@@ -14,7 +14,7 @@ class ArrivalTime():
         self.wavefunc = train.superposition # Superposition
         self.toa = {} # Arrival time distributions
 
-    def quantumclock(self, tVar, tLim):
+    def quantumclock(self, tVar, tLim, xdtc):
         """ Compute quantum clock (Page-Wootters) proposal.
         Parameters:
         tVar : float or array-like
@@ -28,10 +28,35 @@ class ArrivalTime():
             t : float or array-like
                 Time variable.
             """
-            return np.abs(self.wavefunc(t, 0))**2
+            return np.abs(self.wavefunc(t, xdtc))**2
             
         norm, _ = sp.integrate.quad(toa, tLim[0], tLim[1])
         self.toa['Quantum clock'] = toa(tVar)/norm
+
+    def quantumclockdet(self, tVar, tLim, xDtc):
+        """ Compute quantum clock (Page-Wootters) proposal.
+        Parameters:
+        tVar : float or array-like
+            Time variable.
+        tLim : tuple or array-like
+            Temporal domain.
+        xDtc : float
+            Detector position for density (xDtc[0] = beginning of detector, xDtc[1] = ending of detector, for arrival time distributions)
+        """
+        def toaf(t, xDtc):
+            """ Arrival time distribution. 
+            Parameters:
+            t : float or array-like
+                Time variable.
+            """
+            func, _ = sp.integrate.quad(lambda x: np.abs(self.wavefunc(t, x))**2, xDtc[0], xDtc[1])
+            return func
+
+        norm, _ = sp.integrate.dblquad(lambda x, t: np.abs(self.wavefunc(t, x))**2, tLim[0], tLim[1], xDtc[0], xDtc[1])
+        
+        self.toa['Quantum Clock Finite-Size Detector'] = []
+        for i in range(0, len(tVar)):
+            self.toa['Quantum Clock Finite-Size Detector'] += [toaf(tVar[i], xDtc)/norm]
 
   
     def click(self, tVar, xVar, xDtc, numclick): 
@@ -154,7 +179,7 @@ class ArrivalTime():
         plt.show()
 
 
-    def visualizec(self, numPoints, tLim, xLim, xDtc, f, nclick):
+    def visualizec(self, numPoints, tLim, xLim, xDtc, nclick):
         """ Visualize wave function and compare arrival time proposals with click approach.
         Parameters:
         numPoints : int
@@ -165,20 +190,18 @@ class ArrivalTime():
             Spatial domain.
         xDtc : tuple or array-like
             Detector position for density.
-        f : int
-          Number of Clicks under consideration.
         nclick : int
           Number of clicks possible in the Temporal domain.
         """
         
         t = np.linspace(tLim[0], tLim[1], numPoints)
-        #tcond = np.linspace(tLim[0], tLim[1], int(numPoints/nclick))
         x = np.linspace(xLim[0], xLim[1], numPoints)
         T, X = np.meshgrid(t, x)
         density = np.abs(self.wavefunc(T, X))**2
-        #densitys = np.abs(self.condwavefunc(t, xDtc, f, t[1]-t[0]))**2 
         densityDtc = np.abs(self.wavefunc(t, xDtc[0]))**2
-        self.quantumclock(t,tLim)
+        
+        self.quantumclock(t,tLim,  xDtc[0]+(xDtc[1]-xDtc[0])/2)
+        self.quantumclockdet(t, tLim, xDtc)
         self.click(t, x, xDtc, nclick)
         taux = []
         for i in range(numPoints): #Time domain of the Click Approach
