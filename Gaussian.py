@@ -54,8 +54,8 @@ class GaussianTrain():
 
   
     def condarrival(self, tVar, xVar, x1, x2, click, numclick, idx):
-         """ Evaluate single Gaussian wave packet conditioned on being measured at this specific time and not before.
-         Parameters:
+        """ Evaluate single Gaussian wave packet conditioned on being measured at this specific time and not before.
+        Parameters:
         tVar : float or array-like
             Time variable.
         xVar : float or array-like
@@ -74,8 +74,6 @@ class GaussianTrain():
         finalwave: Complex or np.ndarray
             Value of Gaussian packet at every time point tVar conditioned on being on [x1,x2], not having been there at prior times
          """
-
-
 
         def Operator( p, click, idx):
             """ Computes the time evolution of one click with momentum p.
