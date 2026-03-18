@@ -36,10 +36,8 @@ class ArrivalTime():
         wave = toa(tVar)
 
         norm, _ = sp.integrate.quad(toa, tLim[0], tLim[1])
-        
-        Value = wave/norm 
-        #print("Norm: ", sum(Value)*dt)
-        self.toa['Quantum clock'] = Value
+    
+        self.toa['Quantum clock'] = wave/norm 
 
 
     def quantumclockdet(self, tVar, tLim, xDtc):
@@ -67,7 +65,7 @@ class ArrivalTime():
         for i in range(0, len(tVar)):
             self.toa['Quantum Clock Finite-Size Detector'] += [toaf(tVar[i], xDtc)/norm]
 
-    def click_DetRes(self, tVar, xVar, xDtc, numPoints, numclick): 
+    def click_DetRes(self, tVar, xVar, xDtc, numPoints, numclick): #Distribution for δt = δL/p
         """ Compute click proposal.
         Parameters:
         tVar : float or array-like
@@ -120,9 +118,7 @@ class ArrivalTime():
         wave = toa(tVar[0])
         norm = np.sum(wave)*click
 
-        Value = wave/norm 
-        #print("Norm click: ", sum(Value)*click)
-        self.toa['Click Approach'] = Value
+        self.toa['Click Approach'] = wave/norm 
 
 
     def quantumflux(self, tVar, tLim):
@@ -226,19 +222,16 @@ class ArrivalTime():
         density = np.abs(self.wavefunc(T, X))**2
 
         densityDtc = np.abs(self.wavefunc(t, xDtc[0]+(xDtc[1]-xDtc[0])/2))**2
-        self.quantumclock(t, tLim, xDtc[0])#+(xDtc[1]-xDtc[0])/2)
+        self.quantumclock(t, tLim, xDtc[0])
 
         self.quantumclockdet(t, tLim, xDtc)
         self.clickapproach(t, x, xDtc, numPoints, nclick)
-        np.save('./Click_Exp3.npy', self.toa['Click Approach'])
-        #self.toa['Click Approach'] = np.load('./Click_Exp1.npy')
-        
+
         taux = []
         for i in range(numPoints):
             if i % nclick == 0:
                 taux.append(t[i])
         
-
 
         plt.rcParams.update({'font.size': 18})
         plt.rcParams["font.family"] = "serif"
@@ -267,7 +260,7 @@ class ArrivalTime():
         plt.show()
 
 
-    def visualizemult(self, numPoints, tLim, xLim, xDtc, nclick, momento): #tLimWindow, 
+    def visualizemult(self, numPoints, tLim, xLim, xDtc, nclick, momento): # Multiple distribution with different time resolutions
         """ Visualize wave function and compare arrival time proposals.
         Parameters:
         numPoints : int
@@ -291,15 +284,11 @@ class ArrivalTime():
 
         self.quantumclockdet(t, tLim, xDtc)
         self.clickapproach(t, x, xDtc, numPoints, nclick)
-        #np.save('./Click_Exp1.npy', self.toa['Click Approach'])
-        #self.toa['Click Approach'] = np.load('./Click_Exp1.npy')
+
         detclick = (xDtc[1]-xDtc[0]) / (2*momento) # δt = δL/p0 
-        
         numclick = int(detclick/(t[1] - t[0])) # This gives the number of ideal clicks contained in this resolution
-        #print("detector:", ((xDtc[0]-5)/momento)/(t[1] - t[0]))
-        #print(numclick)
-        #numclick = 170
         self.click_DetRes(t, x, xDtc, numPoints, numclick)
+
         
         taux = []
         taux1 = []
@@ -309,7 +298,6 @@ class ArrivalTime():
             if i % numclick == 0:
                 taux1.append(t[i])
         
-
 
         plt.rcParams.update({'font.size': 18})
         plt.rcParams["font.family"] = "serif"
@@ -324,31 +312,6 @@ class ArrivalTime():
             if key == 'Click Approach': # The time axis is different
                 ax3.plot(taux, self.toa[key], color = colors[idx], marker = markers[idx], linestyle = lines[idx],\
                      markersize = 1, linewidth = 1, label = 'Conditioned Dist.')
-                
-                
-                #self.clickapproach(t, x, xDtc, numPoints, 5*nclick)
-                #taux = []
-                #for i in range(numPoints):
-                #    if i % (5*nclick) == 0:
-                #        taux.append(t[i])
-                #ax3.plot(taux, self.toa[key], color = colors[idx+1], marker = markers[idx+1], linestyle = lines[idx+1],\
-                #     markersize = 1, linewidth = 1, label = 'Click Approach 5δt')
-
-                #self.clickapproach(t, x, xDtc, numPoints, 10*nclick)
-                #taux = []
-                #for i in range(numPoints):
-                #    if i % (10*nclick) == 0:
-                #        taux.append(t[i])
-                #ax3.plot(taux, self.toa[key], color = colors[idx+2], marker = markers[idx+2], linestyle = lines[idx+2],\
-                #     markersize = 1, linewidth = 1, label = 'Conditioned Dist. 10δt')
-
-                #self.clickapproach(t, x, xDtc, numPoints, 20*nclick)
-                #taux = []
-                #for i in range(numPoints):
-                #    if i % (20*nclick) == 0:
-                #        taux.append(t[i])
-                #ax3.plot(taux, self.toa[key], color = colors[idx+3], marker = markers[idx+3], linestyle = #lines[idx+3],\
-                #     markersize = 1, linewidth = 1, label = 'Conditioned Distribution 20δt')
 
                 self.clickapproach(t, x, xDtc, numPoints, 70*nclick)
                 taux = []
@@ -357,15 +320,7 @@ class ArrivalTime():
                         taux.append(t[i])
                 ax3.plot(taux, self.toa[key], color = colors[idx+4], marker = markers[idx+4], linestyle = lines[idx+4],\
                      markersize = 1, linewidth = 1, label = 'Conditioned Dist. 70δt')
-
-                #self.clickapproach(t, x, xDtc, numPoints, 120*nclick)
-                #taux = []
-                #for i in range(numPoints):
-                #    if i % (120*nclick) == 0:
-                #        taux.append(t[i])
-                #ax3.plot(taux, self.toa[key], color = colors[idx+5], marker = markers[idx+5], linestyle = lines[idx+5],\
-                #     markersize = 1, linewidth = 1, label = 'Conditioned Dist. 120δt')
-
+            
             else:
                 if key == 'Click Approach δt = δL/p0': # The time axis is different
                     ax3.plot(taux1, self.toa[key], color = colors[idx+1], marker = markers[idx], linestyle = lines[idx],\
@@ -383,6 +338,7 @@ class ArrivalTime():
         ax3.legend(loc = 'upper center', bbox_to_anchor=(0.5, -0.05), shadow=True, ncol=5)
         plt.show()
 
+        
     def compare(self, tLim):
         self.toa['Click Approach 1'] = np.load('./Click_Exp1.npy')
         self.toa['Click Approach 2'] = np.load('./Click_Exp2.npy')
