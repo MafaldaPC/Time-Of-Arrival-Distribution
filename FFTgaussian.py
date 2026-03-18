@@ -52,9 +52,6 @@ class GaussianTrain():
         wavepckt *= np.exp( -1*( (x - self.X[idx] - self.P[idx]*t/self.M[idx])**2 )/\
                           ( (2*self.S[idx]**2)*(1 + 1j*t/( self.M[idx]*self.S[idx]**2 ) ) ) )
         wavepckt *= np.exp( 1j*self.P[idx]*( x - self.X[idx] - self.P[idx]*t/(2*self.M[idx]) ) )
-        
-        #wavepackt = np.fft.ifft(np.fft.fft(wavepckt,norm=None),norm=None)
-        #print("Normal: ", wavepckt, " , FFT: ", wavepackt)
         return wavepckt
 
 
@@ -65,8 +62,6 @@ class GaussianTrain():
                     np.exp( -1*( (x - self.X[idx] - self.P[idx]*t/self.M[idx])**2 )/\
                           ( (2*self.S[idx]**2)*(1 + 1j*t/( self.M[idx]*self.S[idx]**2 ) ) ) )*\
                     np.exp( 1j*self.P[idx]*(x - self.X[idx] - self.P[idx]*t/(2*self.M[idx]) ) ))
-        def condWavepacket(x, idx):
-            return np.exp(1j*self.P[idx]*x-x**2/(2*self.S[idx]**2))/(np.pi*self.P[idx]**2)**(1/4)
         def Operator( p, click, idx):
             return np.exp(-1j*( click )*p**2/(2*self.M[idx]))
 
@@ -77,7 +72,7 @@ class GaussianTrain():
         dx = x[0][1]-x[0][0]
         numPoints = len(x[0])
 
-        p = 2*np.pi*np.fft.fftfreq(numPoints, d=dx)
+        p = 2*np.pi*np.fft.fftfreq(2*numPoints, d=dx) # Double points for the padding
             
         
         finalwave = []
@@ -101,7 +96,7 @@ class GaussianTrain():
                 if (x[k][i]>=x1) and (x[k][i]<=x2):
                     maskex.append(i)
             mask.append(maskex)
-        #print("Detector: ", x[0][mask[0][0]], " to ", x[0][mask[0][-1]])
+
         for i in range(numPoints):
             if (i%numclick)==0:
                 prob = 0
@@ -116,29 +111,11 @@ class GaussianTrain():
                 finalwave.append(prob)
 
                 for k in idx:
-                    #if self.conditioned:
-                    #    norma = np.sum(np.abs(wave[k])**2)*dx 
-                    #    wave[k] = wave[k] / np.sqrt(norma)
-
-                    #Zero-pad to double length to prevent wrap-around
                     padded = np.zeros(2 * numPoints, dtype=complex)
                     padded[:numPoints] = wave[k]
 
-                    p_pad = 2 * np.pi * np.fft.fftfreq(2 * numPoints, d=dx)
-                    prop_pad = Operator(p_pad, click, k)
-
-
-                    propagated = np.fft.ifft(prop_pad * np.fft.fft(padded))
+                    propagated = np.fft.ifft(Propagator[k] * np.fft.fft(padded))
                     wave[k] = propagated[:numPoints]  # Trim back to original size
-
-                #for k in idx:      
-                #    #if self.conditioned:
-                #    #    norma = np.sum(np.abs(wave[k])**2)*dx 
-                #    #    wave[k] = wave[k] / np.sqrt(norma)
-                #    
-                #    wave[k] = (np.fft.ifft( Propagator[k]  * np.fft.fft( wave[k])))#, norm='ortho'
-                #    #norm = np.sum(np.abs(wave[k])**2)*dx
-                #    #wave[k] = wave[k] / np.sqrt(norm)
         return(finalwave)
 
 
